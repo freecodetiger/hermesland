@@ -27,3 +27,12 @@ jobs:
 
       - name: Run smoke
         run: npm run smoke
+
+      - name: Run strict local smoke
+        run: npm run smoke:strict:local
+
+      - name: Run Swift SDK tests
+        run: npm run test:swift-sdk
+
+      - name: Typecheck macOS source
+        run: npm run typecheck:macos-source
