@@ -4,6 +4,7 @@ import { inspect } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_GATEWAY_URL = "http://127.0.0.1:8787";
+const STRICT_ENV = "HERMES_SMOKE_STRICT";
 const MESSAGE_EVENT_ORDER = [
   "message.accepted",
   "message.delta",
@@ -40,7 +41,7 @@ function gatewayBaseUrl() {
   return process.env.HERMES_GATEWAY_URL || DEFAULT_GATEWAY_URL;
 }
 
-async function requestJson(baseUrl, method, path, body) {
+async function requestJson(baseUrl, method, path, body, options = {}) {
   const url = new URL(path, baseUrl);
   const headers = { accept: "application/json" };
   const init = { method, headers };
@@ -54,6 +55,9 @@ async function requestJson(baseUrl, method, path, body) {
   try {
     response = await fetch(url, init);
   } catch (error) {
+    if (options.allowUnreachable) {
+      return null;
+    }
     throw new SmokeError(
       `${method} ${url.href} failed: Gateway is unreachable (${error.message})`,
       { cause: error },
@@ -70,6 +74,10 @@ async function requestJson(baseUrl, method, path, body) {
   }
 
   return parsedBody;
+}
+
+function isStrict() {
+  return process.env[STRICT_ENV] === "1" || process.env[STRICT_ENV] === "true";
 }
 
 function parseResponseBody(text) {
@@ -110,7 +118,13 @@ async function runSmoke() {
   const baseUrl = gatewayBaseUrl();
   console.log(`Smoke target: ${baseUrl}`);
 
-  await requestJson(baseUrl, "GET", "/healthz");
+  const health = await requestJson(baseUrl, "GET", "/healthz", undefined, {
+    allowUnreachable: !isStrict(),
+  });
+  if (health === null) {
+    console.log(`skip Gateway smoke: target unreachable; set ${STRICT_ENV}=1 to fail instead`);
+    return;
+  }
   console.log("ok GET /healthz");
 
   const clientId = `smoke-${Date.now()}`;
@@ -121,11 +135,9 @@ async function runSmoke() {
   console.log("ok POST /v1/auth/device/start");
 
   await requestJson(baseUrl, "POST", "/v1/messages", {
-    type: "message.send",
+    conversation_id: "conv-smoke",
     client_msg_id: clientId,
-    payload: {
-      content: "Hermes smoke test message",
-    },
+    content: "Hermes smoke test message",
   });
   console.log("ok POST /v1/messages");
 

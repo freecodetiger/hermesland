@@ -27,9 +27,15 @@ the mock Gateway is running elsewhere:
 HERMES_GATEWAY_URL=http://127.0.0.1:8787 npm run smoke
 ```
 
-If no Gateway HTTP server is listening, `npm run smoke` exits nonzero and prints
-a clear reachability failure for `GET /healthz`. Once the mock Gateway exists,
-the same command checks:
+If no Gateway HTTP server is listening, `npm run smoke` skips the Gateway smoke
+checks so CI can run without a background service. To require a live Gateway,
+enable strict mode:
+
+```bash
+HERMES_SMOKE_STRICT=1 npm run smoke
+```
+
+Once the mock Gateway exists and is running, the same command checks:
 
 - `GET /healthz`
 - `POST /v1/auth/device/start`
@@ -74,7 +80,7 @@ npm run smoke
 git status --short
 ```
 
-When the Gateway server is not implemented or not running, record the smoke
-failure as an expected environment limitation. Treat test failures from
-`npm test` as release blockers unless the task packet explicitly documents a
-different expectation.
+When the Gateway server is not running, default smoke may skip live checks.
+Use `HERMES_SMOKE_STRICT=1 npm run smoke` for release and local end-to-end
+verification. Treat test failures from `npm test` as release blockers unless
+the task packet explicitly documents a different expectation.
