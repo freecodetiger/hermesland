@@ -37,6 +37,12 @@ export function assertEventOrder(events, expectedTypes) {
   }
 }
 
+export function assertEventTypePresent(events, expectedType) {
+  if (!events.some((event) => event?.type === expectedType)) {
+    throw new SmokeError(`missing ${expectedType}`);
+  }
+}
+
 function gatewayBaseUrl() {
   return process.env.HERMES_GATEWAY_URL || DEFAULT_GATEWAY_URL;
 }
@@ -145,6 +151,39 @@ async function runSmoke() {
   const events = extractEvents(eventsBody);
   assertEventOrder(events, MESSAGE_EVENT_ORDER);
   console.log(`ok GET /v1/events?after_seq=0 includes ${MESSAGE_EVENT_ORDER.join(" -> ")}`);
+
+  const successTask = await requestJson(baseUrl, "POST", "/v1/tasks/run", {
+    mode: "success",
+  });
+  assertEventOrder(successTask.events, ["task.started", "task.progress", "task.completed"]);
+  console.log("ok POST /v1/tasks/run success emits task.started -> task.progress -> task.completed");
+
+  const approvalTask = await requestJson(baseUrl, "POST", "/v1/tasks/run", {
+    mode: "approval",
+  });
+  assertEventOrder(approvalTask.events, ["task.started", "task.requires_approval"]);
+  console.log("ok POST /v1/tasks/run approval emits task.requires_approval");
+
+  const approvalID = approvalTask.approval?.approval_id;
+  if (!approvalID) {
+    throw new SmokeError("approval task response did not include approval.approval_id");
+  }
+
+  const approvalResult = await requestJson(baseUrl, "POST", `/v1/approvals/${approvalID}/approve`);
+  assertEventOrder(approvalResult.events, ["task.progress", "task.completed"]);
+  console.log("ok POST /v1/approvals/:id/approve completes approval task");
+
+  const rejectionTask = await requestJson(baseUrl, "POST", "/v1/tasks/run", {
+    mode: "approval",
+  });
+  const rejectionID = rejectionTask.approval?.approval_id;
+  if (!rejectionID) {
+    throw new SmokeError("rejection task response did not include approval.approval_id");
+  }
+
+  const rejectionResult = await requestJson(baseUrl, "POST", `/v1/approvals/${rejectionID}/reject`);
+  assertEventTypePresent(rejectionResult.events, "task.cancelled");
+  console.log("ok POST /v1/approvals/:id/reject cancels approval task");
 }
 
 const isCli = fileURLToPath(import.meta.url) === process.argv[1];
