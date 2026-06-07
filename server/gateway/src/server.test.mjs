@@ -5,11 +5,16 @@ import {
   EventStore,
   createMockMessageStream,
   createServer,
+  defaultPort,
   health,
 } from "./server.mjs";
 
 test("health returns ok", () => {
   assert.deepEqual(health(), { status: "ok" });
+});
+
+test("default dev server port matches smoke runner target", () => {
+  assert.equal(defaultPort(), 8787);
 });
 
 test("EventStore appends events with increasing seq and stable event_id", () => {
