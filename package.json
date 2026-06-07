@@ -14,6 +14,9 @@
     "smoke": "node scripts/smoke.mjs",
     "smoke:strict:local": "node scripts/strict-smoke-local.mjs",
     "test:swift-sdk": "cd packages/hermes-swift-sdk && swift test",
+    "test:macos": "cd apps/macos && swift test",
+    "run:macos-demo": "cd apps/macos && swift run hermes-island-companion demo",
+    "run:macos-live": "cd apps/macos && swift run hermes-island-companion live",
     "typecheck:macos-source": "swiftc -typecheck apps/macos/Sources/AppShell/*.swift apps/macos/Sources/UIState/*.swift"
   },
   "engines": {

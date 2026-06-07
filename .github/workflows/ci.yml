@@ -34,5 +34,11 @@ jobs:
       - name: Run Swift SDK tests
         run: npm run test:swift-sdk
 
+      - name: Run macOS SwiftPM tests
+        run: npm run test:macos
+
       - name: Typecheck macOS source
         run: npm run typecheck:macos-source
+
+      - name: Run macOS companion demo
+        run: npm run run:macos-demo
