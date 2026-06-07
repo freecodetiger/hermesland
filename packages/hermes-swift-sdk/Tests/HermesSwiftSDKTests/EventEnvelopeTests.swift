@@ -78,4 +78,157 @@ struct EventEnvelopeTests {
         #expect(envelope.payload.clientMessageID == "smoke-1")
         #expect(envelope.payload.delta == "Mock response part 1")
     }
+
+    @Test func decodesGatewayTaskStartedEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_005",
+          "seq": 5,
+          "type": "task.started",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_001",
+            "title": "Run smoke test"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskStartedPayload>.self, from: json)
+
+        #expect(envelope.type == .taskStarted)
+        #expect(envelope.payload.taskID == "task_001")
+        #expect(envelope.payload.title == "Run smoke test")
+    }
+
+    @Test func decodesGatewayTaskProgressEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_006",
+          "seq": 6,
+          "type": "task.progress",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_001",
+            "progress": 0.5,
+            "message": "Gateway stream connected."
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskProgressPayload>.self, from: json)
+
+        #expect(envelope.type == .taskProgress)
+        #expect(envelope.payload.taskID == "task_001")
+        #expect(envelope.payload.progress == 0.5)
+        #expect(envelope.payload.message == "Gateway stream connected.")
+    }
+
+    @Test func decodesGatewayTaskCompletedEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_007",
+          "seq": 7,
+          "type": "task.completed",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_001",
+            "result": "Smoke test passed."
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskCompletedPayload>.self, from: json)
+
+        #expect(envelope.type == .taskCompleted)
+        #expect(envelope.payload.taskID == "task_001")
+        #expect(envelope.payload.result == "Smoke test passed.")
+    }
+
+    @Test func decodesGatewayTaskFailedEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_008",
+          "seq": 8,
+          "type": "task.failed",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_002",
+            "error": {
+              "code": "COMMAND_FAILED",
+              "message": "npm test exited non-zero."
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskFailedPayload>.self, from: json)
+
+        #expect(envelope.type == .taskFailed)
+        #expect(envelope.payload.taskID == "task_002")
+        #expect(envelope.payload.error.code == "COMMAND_FAILED")
+        #expect(envelope.payload.error.message == "npm test exited non-zero.")
+    }
+
+    @Test func decodesGatewayTaskCancelledEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_009",
+          "seq": 9,
+          "type": "task.cancelled",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_003",
+            "reason": "User cancelled from Island."
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskCancelledPayload>.self, from: json)
+
+        #expect(envelope.type == .taskCancelled)
+        #expect(envelope.payload.taskID == "task_003")
+        #expect(envelope.payload.reason == "User cancelled from Island.")
+    }
+
+    @Test func decodesGatewayTaskRequiresApprovalEnvelope() throws {
+        let json = """
+        {
+          "event_id": "evt_010",
+          "seq": 10,
+          "type": "task.requires_approval",
+          "created_at": "2026-01-01T00:00:00.000Z",
+          "payload": {
+            "task_id": "task_004",
+            "approval_id": "approval_001",
+            "prompt": "Allow file write?",
+            "actions": ["approve", "deny"],
+            "expires_at": "2026-01-01T00:05:00.000Z"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let envelope = try JSONDecoder().decode(EventEnvelope<TaskRequiresApprovalPayload>.self, from: json)
+
+        #expect(envelope.type == .taskRequiresApproval)
+        #expect(envelope.payload.taskID == "task_004")
+        #expect(envelope.payload.approvalID == "approval_001")
+        #expect(envelope.payload.prompt == "Allow file write?")
+        #expect(envelope.payload.actions == ["approve", "deny"])
+        #expect(envelope.payload.expiresAt == "2026-01-01T00:05:00.000Z")
+    }
+
+    @Test func encodesApprovalDecisionRequestUsingProtocolFieldNames() throws {
+        let request = ApprovalDecisionRequest(
+            approvalID: "approval_001",
+            taskID: "task_004",
+            decision: .approve
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+
+        #expect(object?["approval_id"] as? String == "approval_001")
+        #expect(object?["task_id"] as? String == "task_004")
+        #expect(object?["decision"] as? String == "approve")
+    }
 }

@@ -17,6 +17,13 @@ not require an Xcode project.
   presence, and system errors. Message payloads include Gateway correlation
   fields such as `conversation_id`, `message_id`, and `client_msg_id` where the
   MVP stream emits them.
+- Task payload wrappers decode Gateway-style `task.started`, `task.progress`,
+  `task.completed`, `task.failed`, `task.cancelled`, and
+  `task.requires_approval` envelopes. Approval requests expose `task_id`,
+  `approval_id`, `prompt`, `actions`, and optional `expires_at`.
+- `ApprovalDecisionRequest` is a lightweight Codable body for future approval
+  approve/reject calls. It encodes `approval_id`, `task_id`, and `decision`
+  using protocol field names; the SDK does not send it over the network yet.
 - `EventDeduplicator` tracks processed `event_id` values and reports duplicate
   events as ignored.
 - `LastSeqTracker` stores the last processed sequence number and only advances
@@ -31,7 +38,7 @@ not require an Xcode project.
 
 ## Current Limitations
 
-- The package does not include WebSocket or SSE transport code yet.
+- The package does not include WebSocket, SSE, or approval transport code yet.
 - A platform Keychain-backed token store is not implemented yet; only the
   protocol and in-memory implementation exist.
 - Event payload wrappers cover the MVP contract and Gateway mock shape but do

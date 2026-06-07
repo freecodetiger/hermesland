@@ -166,12 +166,20 @@ public struct TaskRequiresApprovalPayload: Codable, Equatable {
     public let approvalID: String
     public let prompt: String
     public let actions: [String]
+    public let expiresAt: String?
 
-    public init(taskID: String, approvalID: String, prompt: String, actions: [String]) {
+    public init(
+        taskID: String,
+        approvalID: String,
+        prompt: String,
+        actions: [String],
+        expiresAt: String? = nil
+    ) {
         self.taskID = taskID
         self.approvalID = approvalID
         self.prompt = prompt
         self.actions = actions
+        self.expiresAt = expiresAt
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -179,7 +187,31 @@ public struct TaskRequiresApprovalPayload: Codable, Equatable {
         case approvalID = "approval_id"
         case prompt
         case actions
+        case expiresAt = "expires_at"
     }
+}
+
+public struct ApprovalDecisionRequest: Codable, Equatable {
+    public let approvalID: String
+    public let taskID: String
+    public let decision: ApprovalDecision
+
+    public init(approvalID: String, taskID: String, decision: ApprovalDecision) {
+        self.approvalID = approvalID
+        self.taskID = taskID
+        self.decision = decision
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case approvalID = "approval_id"
+        case taskID = "task_id"
+        case decision
+    }
+}
+
+public enum ApprovalDecision: String, Codable, Equatable {
+    case approve
+    case reject
 }
 
 public struct NotificationCreatedPayload: Codable, Equatable {
