@@ -17,3 +17,15 @@ For a SwiftUI menu bar app, `MenuBarExtra` can read `connectionState` to choose 
 For an AppKit status item app, `NSStatusItem` and `NSMenuItem` actions can call `AppShellModel.send(_:)`. AppKit windows can observe the same model directly or host SwiftUI views that observe it.
 
 No build integration exists yet. These files are designed to be added later to an Xcode macOS app target without changing this source shape.
+
+## SwiftPM Companion
+
+This directory now also includes a Swift Package executable target for a runnable local MVP shell:
+
+```bash
+cd apps/macos
+swift run hermes-island-companion demo
+swift test
+```
+
+The executable is not a packaged `.app` yet. It verifies the app shell and UI state reducer can run together without requiring an Xcode project, which keeps the MVP testable while full Xcode is unavailable in the current environment.
