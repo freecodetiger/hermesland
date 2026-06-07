@@ -10,6 +10,9 @@ let package = Package(
     products: [
         .executable(name: "hermes-island-companion", targets: ["HermesIslandCompanion"]),
     ],
+    dependencies: [
+        .package(path: "../../packages/hermes-swift-sdk"),
+    ],
     targets: [
         .target(
             name: "AppShell",
@@ -22,7 +25,11 @@ let package = Package(
         ),
         .target(
             name: "HermesIslandCompanionCore",
-            dependencies: ["AppShell", "UIState"],
+            dependencies: [
+                "AppShell",
+                "UIState",
+                .product(name: "HermesSwiftSDK", package: "hermes-swift-sdk"),
+            ],
             path: "Sources/HermesIslandCompanionCore"
         ),
         .executableTarget(

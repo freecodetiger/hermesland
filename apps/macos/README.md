@@ -28,4 +28,12 @@ swift run hermes-island-companion demo
 swift test
 ```
 
-The executable is not a packaged `.app` yet. It verifies the app shell and UI state reducer can run together without requiring an Xcode project, which keeps the MVP testable while full Xcode is unavailable in the current environment.
+With the mock Gateway running, the companion can also exercise the live HTTP flow:
+
+```bash
+npm --workspace @hermesland/gateway run dev
+cd apps/macos
+swift run hermes-island-companion live
+```
+
+The executable is not a packaged `.app` yet. It verifies the app shell, Swift SDK, Gateway HTTP flow, and UI state reducer can run together without requiring an Xcode project, which keeps the MVP testable while full Xcode is unavailable in the current environment.
