@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assertEventOrder } from "./smoke.mjs";
+import { assertEventOrder, assertEventTypePresent } from "./smoke.mjs";
 
 test("assertEventOrder accepts expected event types in order", () => {
   const events = [
@@ -44,5 +44,23 @@ test("assertEventOrder rejects expected event types out of order", () => {
       );
     },
     /missing message.delta after message.accepted/,
+  );
+});
+
+test("assertEventTypePresent accepts an existing event type", () => {
+  assert.doesNotThrow(() => {
+    assertEventTypePresent(
+      [{ type: "task.started" }, { type: "task.completed" }],
+      "task.completed",
+    );
+  });
+});
+
+test("assertEventTypePresent rejects a missing event type", () => {
+  assert.throws(
+    () => {
+      assertEventTypePresent([{ type: "task.started" }], "task.completed");
+    },
+    /missing task.completed/,
   );
 });
