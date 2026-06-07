@@ -1,44 +1,69 @@
 public struct MessageAcceptedPayload: Codable, Equatable {
+    public let conversationID: String?
     public let messageID: String
     public let clientMessageID: String
 
-    public init(messageID: String, clientMessageID: String) {
+    public init(conversationID: String? = nil, messageID: String, clientMessageID: String) {
+        self.conversationID = conversationID
         self.messageID = messageID
         self.clientMessageID = clientMessageID
     }
 
     private enum CodingKeys: String, CodingKey {
+        case conversationID = "conversation_id"
         case messageID = "message_id"
         case clientMessageID = "client_msg_id"
     }
 }
 
 public struct MessageDeltaPayload: Codable, Equatable {
+    public let conversationID: String?
     public let messageID: String
+    public let clientMessageID: String?
     public let delta: String
 
-    public init(messageID: String, delta: String) {
+    public init(
+        conversationID: String? = nil,
+        messageID: String,
+        clientMessageID: String? = nil,
+        delta: String
+    ) {
+        self.conversationID = conversationID
         self.messageID = messageID
+        self.clientMessageID = clientMessageID
         self.delta = delta
     }
 
     private enum CodingKeys: String, CodingKey {
+        case conversationID = "conversation_id"
         case messageID = "message_id"
+        case clientMessageID = "client_msg_id"
         case delta
     }
 }
 
 public struct MessageCompletedPayload: Codable, Equatable {
+    public let conversationID: String?
     public let messageID: String
-    public let text: String
+    public let clientMessageID: String?
+    public let text: String?
 
-    public init(messageID: String, text: String) {
+    public init(
+        conversationID: String? = nil,
+        messageID: String,
+        clientMessageID: String? = nil,
+        text: String? = nil
+    ) {
+        self.conversationID = conversationID
         self.messageID = messageID
+        self.clientMessageID = clientMessageID
         self.text = text
     }
 
     private enum CodingKeys: String, CodingKey {
+        case conversationID = "conversation_id"
         case messageID = "message_id"
+        case clientMessageID = "client_msg_id"
         case text
     }
 }

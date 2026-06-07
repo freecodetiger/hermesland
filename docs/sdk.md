@@ -14,7 +14,9 @@ not require an Xcode project.
   task, notification, agent presence, and system error events.
 - Payload wrappers provide Codable structs for the current practical event
   shapes, including message payloads, task payloads, notifications, agent
-  presence, and system errors.
+  presence, and system errors. Message payloads include Gateway correlation
+  fields such as `conversation_id`, `message_id`, and `client_msg_id` where the
+  MVP stream emits them.
 - `EventDeduplicator` tracks processed `event_id` values and reports duplicate
   events as ignored.
 - `LastSeqTracker` stores the last processed sequence number and only advances
@@ -32,8 +34,9 @@ not require an Xcode project.
 - The package does not include WebSocket or SSE transport code yet.
 - A platform Keychain-backed token store is not implemented yet; only the
   protocol and in-memory implementation exist.
-- Event payload wrappers cover the MVP contract but do not validate semantic
-  constraints such as non-negative progress or event type to payload matching.
+- Event payload wrappers cover the MVP contract and Gateway mock shape but do
+  not validate semantic constraints such as non-negative progress or event type
+  to payload matching.
 - Event replay, acknowledgement command generation, and offline persistence are
   outside this foundation pass.
 
