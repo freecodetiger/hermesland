@@ -31,11 +31,29 @@ jobs:
       - name: Run strict local smoke
         run: npm run smoke:strict:local
 
+  swift:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run Swift SDK tests
         run: npm run test:swift-sdk
 
       - name: Run macOS SwiftPM tests
         run: npm run test:macos
+
+      - name: Build macOS menu bar target
+        run: npm run build:macos-menubar
 
       - name: Typecheck macOS source
         run: npm run typecheck:macos-source

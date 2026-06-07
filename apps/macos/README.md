@@ -37,3 +37,15 @@ swift run hermes-island-companion live
 ```
 
 The executable is not a packaged `.app` yet. It verifies the app shell, Swift SDK, Gateway HTTP flow, and UI state reducer can run together without requiring an Xcode project, which keeps the MVP testable while full Xcode is unavailable in the current environment.
+
+## SwiftPM Menu Bar AppKit Target
+
+There is also a minimal AppKit status item target:
+
+```bash
+cd apps/macos
+swift build --product hermes-island-menubar
+swift run hermes-island-menubar
+```
+
+This is a real macOS process with an `NSStatusItem`, but it is still not a signed `.app` bundle. It exists as the current runnable desktop MVP while the project does not have a full Xcode app target.

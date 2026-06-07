@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .executable(name: "hermes-island-companion", targets: ["HermesIslandCompanion"]),
+        .executable(name: "hermes-island-menubar", targets: ["HermesIslandMenuBar"]),
     ],
     dependencies: [
         .package(path: "../../packages/hermes-swift-sdk"),
@@ -36,6 +37,11 @@ let package = Package(
             name: "HermesIslandCompanion",
             dependencies: ["HermesIslandCompanionCore"],
             path: "Sources/HermesIslandCompanion"
+        ),
+        .executableTarget(
+            name: "HermesIslandMenuBar",
+            dependencies: ["HermesIslandCompanionCore"],
+            path: "Sources/HermesIslandMenuBar"
         ),
         .testTarget(
             name: "HermesIslandCompanionTests",
