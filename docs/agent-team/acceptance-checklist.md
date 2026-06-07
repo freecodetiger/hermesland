@@ -101,8 +101,9 @@
 
 - [ ] Local mock demo can be run from README.
 - [ ] Smoke test covers message stream.
+- [ ] Smoke test fails clearly at `GET /healthz` when the Gateway endpoint is unavailable.
+- [ ] Smoke test can target a non-default Gateway with `HERMES_GATEWAY_URL`.
 - [ ] Smoke test covers task stream.
 - [ ] Smoke test covers approval flow.
 - [ ] Known limitations are documented.
 - [ ] APNs is explicitly marked as post-MVP if not implemented.
-
