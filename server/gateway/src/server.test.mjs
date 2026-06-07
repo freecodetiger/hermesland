@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { EVENT_TYPES, validateEventEnvelope } from "@hermesland/hermes-protocol";
 import {
   EventStore,
   createMockMessageStream,
@@ -14,14 +15,33 @@ test("health returns ok", () => {
 test("EventStore appends events with increasing seq and stable event_id", () => {
   const store = new EventStore();
 
-  const first = store.append({ type: "message.accepted", client_msg_id: "msg-1" });
-  const second = store.append({ type: "message.completed", client_msg_id: "msg-1" });
+  const first = store.append({
+    type: EVENT_TYPES.messageAccepted,
+    payload: { client_msg_id: "msg-1" },
+  });
+  const second = store.append({
+    type: EVENT_TYPES.messageCompleted,
+    payload: { client_msg_id: "msg-1" },
+  });
 
   assert.equal(first.seq, 1);
   assert.equal(second.seq, 2);
   assert.match(first.event_id, /^evt_000001$/);
+  assert.match(first.created_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(first.payload, { client_msg_id: "msg-1" });
+  assert.deepEqual(validateEventEnvelope(first), { ok: true });
+  assert.deepEqual(validateEventEnvelope(second), { ok: true });
   assert.equal(store.listAfter(0)[0].event_id, first.event_id);
   assert.deepEqual(store.listAfter(1), [second]);
+});
+
+test("EventStore rejects events that do not validate as EventEnvelope", () => {
+  const store = new EventStore();
+
+  assert.throws(
+    () => store.append({ type: "message.unknown", payload: {} }),
+    /EventEnvelope.type must be a known event type/,
+  );
 });
 
 test("EventStore stores ACK cursors per device", () => {
@@ -42,13 +62,19 @@ test("mock message stream emits accepted, deltas, and completed in order", () =>
     content: "hello",
   });
 
-  assert.equal(events[0].type, "message.accepted");
-  assert.equal(events.at(-1).type, "message.completed");
-  assert.equal(events.filter((event) => event.type === "message.delta").length, 3);
+  assert.equal(events[0].type, EVENT_TYPES.messageAccepted);
+  assert.equal(events.at(-1).type, EVENT_TYPES.messageCompleted);
+  assert.equal(events.filter((event) => event.type === EVENT_TYPES.messageDelta).length, 3);
   assert.deepEqual(
-    events.map((event) => event.client_msg_id),
+    events.map((event) => event.payload.client_msg_id),
     ["msg-1", "msg-1", "msg-1", "msg-1", "msg-1"],
   );
+  assert.deepEqual(events[1].payload, {
+    conversation_id: "conv-1",
+    message_id: "msg_msg-1",
+    client_msg_id: "msg-1",
+    delta: "Mock response part 1",
+  });
 });
 
 test("HTTP endpoints expose mock auth, event replay, ACKs, messages, and SSE replay", async (t) => {
@@ -90,6 +116,25 @@ test("HTTP endpoints expose mock auth, event replay, ACKs, messages, and SSE rep
     messageBody.events.map((event) => event.seq),
     [1, 2, 3, 4, 5],
   );
+  assert.deepEqual(messageBody.events.map(validateEventEnvelope), [
+    { ok: true },
+    { ok: true },
+    { ok: true },
+    { ok: true },
+    { ok: true },
+  ]);
+  assert.deepEqual(messageBody.events[1], {
+    event_id: "evt_000002",
+    seq: 2,
+    type: EVENT_TYPES.messageDelta,
+    created_at: messageBody.events[1].created_at,
+    payload: {
+      conversation_id: "conv-1",
+      message_id: "msg_msg-1",
+      client_msg_id: "msg-1",
+      delta: "Mock response part 1",
+    },
+  });
 
   const replayResponse = await fetch(`${baseUrl}/v1/events?after_seq=2`);
   assert.equal(replayResponse.status, 200);
@@ -98,6 +143,11 @@ test("HTTP endpoints expose mock auth, event replay, ACKs, messages, and SSE rep
     replayBody.events.map((event) => event.seq),
     [3, 4, 5],
   );
+  assert.deepEqual(replayBody.events.map(validateEventEnvelope), [
+    { ok: true },
+    { ok: true },
+    { ok: true },
+  ]);
 
   const ackResponse = await fetch(`${baseUrl}/v1/events/ack`, {
     method: "POST",
@@ -116,4 +166,5 @@ test("HTTP endpoints expose mock auth, event replay, ACKs, messages, and SSE rep
   assert.match(sseBody, /event: message\.completed/);
   assert.match(sseBody, /"seq":4/);
   assert.match(sseBody, /"seq":5/);
+  assert.match(sseBody, /"payload":\{"conversation_id":"conv-1","message_id":"msg_msg-1","client_msg_id":"msg-1","delta":"Mock response part 3"\}/);
 });

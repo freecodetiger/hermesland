@@ -37,11 +37,15 @@ Response:
 {
   "events": [
     {
-      "type": "message.accepted",
-      "conversation_id": "conv-1",
-      "client_msg_id": "msg-1",
       "seq": 1,
-      "event_id": "evt_000001"
+      "event_id": "evt_000001",
+      "type": "message.accepted",
+      "created_at": "2026-06-08T00:00:00.000Z",
+      "payload": {
+        "conversation_id": "conv-1",
+        "message_id": "msg_msg-1",
+        "client_msg_id": "msg-1"
+      }
     }
   ]
 }
@@ -94,11 +98,15 @@ Response:
   "accepted": true,
   "events": [
     {
-      "type": "message.accepted",
-      "conversation_id": "conv-1",
-      "client_msg_id": "msg-1",
       "seq": 1,
-      "event_id": "evt_000001"
+      "event_id": "evt_000001",
+      "type": "message.accepted",
+      "created_at": "2026-06-08T00:00:00.000Z",
+      "payload": {
+        "conversation_id": "conv-1",
+        "message_id": "msg_msg-1",
+        "client_msg_id": "msg-1"
+      }
     }
   ]
 }
@@ -112,5 +120,5 @@ SSE event format:
 
 ```text
 event: message.delta
-data: {"type":"message.delta","conversation_id":"conv-1","client_msg_id":"msg-1","delta":"Mock response part 1","seq":2,"event_id":"evt_000002"}
+data: {"event_id":"evt_000002","seq":2,"type":"message.delta","created_at":"2026-06-08T00:00:00.000Z","payload":{"conversation_id":"conv-1","message_id":"msg_msg-1","client_msg_id":"msg-1","delta":"Mock response part 1"}}
 ```

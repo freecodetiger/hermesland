@@ -1,5 +1,6 @@
 import http from "node:http";
 import { fileURLToPath } from "node:url";
+import { EVENT_TYPES, validateEventEnvelope } from "@hermesland/hermes-protocol";
 
 export function health() {
   return { status: "ok" };
@@ -10,13 +11,20 @@ export class EventStore {
   #cursors = new Map();
   #nextSeq = 1;
 
-  append(event) {
+  append({ type, payload }) {
     const seq = this.#nextSeq++;
     const storedEvent = {
-      ...event,
-      seq,
       event_id: `evt_${String(seq).padStart(6, "0")}`,
+      seq,
+      type,
+      created_at: new Date().toISOString(),
+      payload,
     };
+    const validation = validateEventEnvelope(storedEvent);
+
+    if (!validation.ok) {
+      throw new Error(validation.error);
+    }
 
     this.#events.push(storedEvent);
     return storedEvent;
@@ -36,34 +44,51 @@ export class EventStore {
 }
 
 export function createMockMessageStream({ conversation_id, client_msg_id, content }) {
+  const message_id = `msg_${client_msg_id}`;
+
   return [
     {
-      type: "message.accepted",
-      conversation_id,
-      client_msg_id,
+      type: EVENT_TYPES.messageAccepted,
+      payload: {
+        conversation_id,
+        message_id,
+        client_msg_id,
+      },
     },
     {
-      type: "message.delta",
-      conversation_id,
-      client_msg_id,
-      delta: "Mock response part 1",
+      type: EVENT_TYPES.messageDelta,
+      payload: {
+        conversation_id,
+        message_id,
+        client_msg_id,
+        delta: "Mock response part 1",
+      },
     },
     {
-      type: "message.delta",
-      conversation_id,
-      client_msg_id,
-      delta: content ? `Echo: ${content}` : "Mock response part 2",
+      type: EVENT_TYPES.messageDelta,
+      payload: {
+        conversation_id,
+        message_id,
+        client_msg_id,
+        delta: content ? `Echo: ${content}` : "Mock response part 2",
+      },
     },
     {
-      type: "message.delta",
-      conversation_id,
-      client_msg_id,
-      delta: "Mock response part 3",
+      type: EVENT_TYPES.messageDelta,
+      payload: {
+        conversation_id,
+        message_id,
+        client_msg_id,
+        delta: "Mock response part 3",
+      },
     },
     {
-      type: "message.completed",
-      conversation_id,
-      client_msg_id,
+      type: EVENT_TYPES.messageCompleted,
+      payload: {
+        conversation_id,
+        message_id,
+        client_msg_id,
+      },
     },
   ];
 }
