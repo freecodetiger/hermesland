@@ -82,6 +82,146 @@ test("mock message stream emits accepted, deltas, and completed in order", () =>
   });
 });
 
+test("POST /v1/tasks/run records a successful mock task and exposes task state", async (t) => {
+  const server = createServer({ store: new EventStore() });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const taskResponse = await fetch(`${baseUrl}/v1/tasks/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "success" }),
+  });
+  assert.equal(taskResponse.status, 202);
+  const taskBody = await taskResponse.json();
+  assert.equal(taskBody.task.status, "completed");
+  assert.deepEqual(
+    taskBody.events.map((event) => event.type),
+    [EVENT_TYPES.taskStarted, EVENT_TYPES.taskProgress, EVENT_TYPES.taskCompleted],
+  );
+  assert.deepEqual(taskBody.events.map(validateEventEnvelope), [
+    { ok: true },
+    { ok: true },
+    { ok: true },
+  ]);
+
+  const tasksResponse = await fetch(`${baseUrl}/v1/tasks`);
+  assert.equal(tasksResponse.status, 200);
+  assert.deepEqual(await tasksResponse.json(), {
+    tasks: [
+      {
+        task_id: taskBody.task.task_id,
+        mode: "success",
+        status: "completed",
+        title: "Mock success task",
+      },
+    ],
+  });
+});
+
+test("POST /v1/tasks/run failure records safe task.failed payload", async (t) => {
+  const server = createServer({ store: new EventStore() });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const taskResponse = await fetch(`${baseUrl}/v1/tasks/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "failure" }),
+  });
+  assert.equal(taskResponse.status, 202);
+  const taskBody = await taskResponse.json();
+
+  assert.equal(taskBody.task.status, "failed");
+  assert.deepEqual(
+    taskBody.events.map((event) => event.type),
+    [EVENT_TYPES.taskStarted, EVENT_TYPES.taskFailed],
+  );
+  assert.deepEqual(taskBody.events.map(validateEventEnvelope), [{ ok: true }, { ok: true }]);
+  assert.deepEqual(taskBody.events[1].payload.error, {
+    code: "MOCK_TASK_FAILED",
+    message: "Mock task failed safely.",
+  });
+});
+
+test("approval task can be approved once to complete the task", async (t) => {
+  const server = createServer({ store: new EventStore() });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const taskResponse = await fetch(`${baseUrl}/v1/tasks/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "approval" }),
+  });
+  assert.equal(taskResponse.status, 202);
+  const taskBody = await taskResponse.json();
+  assert.equal(taskBody.task.status, "requires_approval");
+  assert.equal(taskBody.approval.status, "pending");
+  assert.deepEqual(
+    taskBody.events.map((event) => event.type),
+    [EVENT_TYPES.taskStarted, EVENT_TYPES.taskRequiresApproval],
+  );
+  assert.deepEqual(taskBody.events.map(validateEventEnvelope), [{ ok: true }, { ok: true }]);
+
+  const approvalResponse = await fetch(
+    `${baseUrl}/v1/approvals/${taskBody.approval.approval_id}/approve`,
+    { method: "POST" },
+  );
+  assert.equal(approvalResponse.status, 200);
+  const approvalBody = await approvalResponse.json();
+  assert.deepEqual(
+    approvalBody.events.map((event) => event.type),
+    [EVENT_TYPES.taskProgress, EVENT_TYPES.taskCompleted],
+  );
+  assert.deepEqual(approvalBody.events.map(validateEventEnvelope), [{ ok: true }, { ok: true }]);
+  assert.equal(approvalBody.approval.status, "approved");
+  assert.equal(approvalBody.task.status, "completed");
+
+  const secondApprovalResponse = await fetch(
+    `${baseUrl}/v1/approvals/${taskBody.approval.approval_id}/approve`,
+    { method: "POST" },
+  );
+  assert.equal(secondApprovalResponse.status, 409);
+  assert.deepEqual(await secondApprovalResponse.json(), {
+    error: "approval_already_resolved",
+    approval_id: taskBody.approval.approval_id,
+    status: "approved",
+  });
+});
+
+test("approval task can be rejected once to cancel the task", async (t) => {
+  const server = createServer({ store: new EventStore() });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const taskResponse = await fetch(`${baseUrl}/v1/tasks/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "approval" }),
+  });
+  const taskBody = await taskResponse.json();
+
+  const rejectionResponse = await fetch(
+    `${baseUrl}/v1/approvals/${taskBody.approval.approval_id}/reject`,
+    { method: "POST" },
+  );
+  assert.equal(rejectionResponse.status, 200);
+  const rejectionBody = await rejectionResponse.json();
+  assert.deepEqual(rejectionBody.events.map((event) => event.type), [EVENT_TYPES.taskCancelled]);
+  assert.deepEqual(rejectionBody.events.map(validateEventEnvelope), [{ ok: true }]);
+  assert.equal(rejectionBody.approval.status, "rejected");
+  assert.equal(rejectionBody.task.status, "cancelled");
+});
+
 test("HTTP endpoints expose mock auth, event replay, ACKs, messages, and SSE replay", async (t) => {
   const store = new EventStore();
   const server = createServer({ store });
