@@ -13,7 +13,11 @@ export function defaultPort() {
 export class EventStore {
   #events = [];
   #cursors = new Map();
+  #tasks = [];
+  #approvals = [];
   #nextSeq = 1;
+  #nextTaskSeq = 1;
+  #nextApprovalSeq = 1;
 
   append({ type, payload }) {
     const seq = this.#nextSeq++;
@@ -44,6 +48,166 @@ export class EventStore {
 
   getCursor(deviceId) {
     return this.#cursors.get(deviceId) ?? 0;
+  }
+
+  runTask({ mode = "success" } = {}) {
+    if (!["success", "failure", "approval"].includes(mode)) {
+      throw new Error("mode must be one of: success, failure, approval");
+    }
+
+    const task = {
+      task_id: `task_${String(this.#nextTaskSeq++).padStart(6, "0")}`,
+      mode,
+      status: "running",
+      title: `Mock ${mode} task`,
+    };
+    this.#tasks.push(task);
+
+    const events = [
+      this.append({
+        type: EVENT_TYPES.taskStarted,
+        payload: {
+          task_id: task.task_id,
+          title: task.title,
+        },
+      }),
+    ];
+
+    if (mode === "failure") {
+      task.status = "failed";
+      events.push(
+        this.append({
+          type: EVENT_TYPES.taskFailed,
+          payload: {
+            task_id: task.task_id,
+            error: {
+              code: "MOCK_TASK_FAILED",
+              message: "Mock task failed safely.",
+            },
+          },
+        }),
+      );
+      return { task: copyRecord(task), events };
+    }
+
+    if (mode === "approval") {
+      const approval = {
+        approval_id: `approval_${String(this.#nextApprovalSeq++).padStart(6, "0")}`,
+        task_id: task.task_id,
+        status: "pending",
+        prompt: "Approve mock task?",
+        actions: ["approve", "reject"],
+      };
+      this.#approvals.push(approval);
+      task.status = "requires_approval";
+      events.push(
+        this.append({
+          type: EVENT_TYPES.taskRequiresApproval,
+          payload: {
+            task_id: task.task_id,
+            approval_id: approval.approval_id,
+            prompt: approval.prompt,
+            actions: approval.actions,
+          },
+        }),
+      );
+      return { task: copyRecord(task), approval: copyRecord(approval), events };
+    }
+
+    task.status = "completed";
+    events.push(
+      this.append({
+        type: EVENT_TYPES.taskProgress,
+        payload: {
+          task_id: task.task_id,
+          progress: 0.5,
+          message: "Mock task running.",
+        },
+      }),
+      this.append({
+        type: EVENT_TYPES.taskCompleted,
+        payload: {
+          task_id: task.task_id,
+          result: "Mock task completed.",
+        },
+      }),
+    );
+
+    return { task: copyRecord(task), events };
+  }
+
+  listTasks() {
+    return this.#tasks.map(copyRecord);
+  }
+
+  resolveApproval(approvalId, decision) {
+    const approval = this.#approvals.find((candidate) => candidate.approval_id === approvalId);
+
+    if (!approval) {
+      return {
+        ok: false,
+        statusCode: 404,
+        body: { error: "approval_not_found", approval_id: approvalId },
+      };
+    }
+
+    if (approval.status !== "pending") {
+      return {
+        ok: false,
+        statusCode: 409,
+        body: {
+          error: "approval_already_resolved",
+          approval_id: approval.approval_id,
+          status: approval.status,
+        },
+      };
+    }
+
+    const task = this.#tasks.find((candidate) => candidate.task_id === approval.task_id);
+    const events = [];
+
+    if (decision === "approve") {
+      approval.status = "approved";
+      task.status = "completed";
+      events.push(
+        this.append({
+          type: EVENT_TYPES.taskProgress,
+          payload: {
+            task_id: task.task_id,
+            progress: 1,
+            message: "Approval granted.",
+          },
+        }),
+        this.append({
+          type: EVENT_TYPES.taskCompleted,
+          payload: {
+            task_id: task.task_id,
+            result: "Mock task approved and completed.",
+          },
+        }),
+      );
+    } else {
+      approval.status = "rejected";
+      task.status = "cancelled";
+      events.push(
+        this.append({
+          type: EVENT_TYPES.taskCancelled,
+          payload: {
+            task_id: task.task_id,
+            reason: "Approval rejected.",
+          },
+        }),
+      );
+    }
+
+    return {
+      ok: true,
+      body: {
+        approval: copyRecord(approval),
+        task: copyRecord(task),
+        events,
+      },
+    };
   }
 }
 
@@ -142,6 +306,25 @@ export function createServer({ store = new EventStore() } = {}) {
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/v1/tasks/run") {
+        const body = await readJson(request);
+        const taskRun = store.runTask(body);
+        sendJson(response, 202, taskRun);
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/v1/tasks") {
+        sendJson(response, 200, { tasks: store.listTasks() });
+        return;
+      }
+
+      const approvalMatch = url.pathname.match(/^\/v1\/approvals\/([^/]+)\/(approve|reject)$/);
+      if (request.method === "POST" && approvalMatch) {
+        const result = store.resolveApproval(approvalMatch[1], approvalMatch[2]);
+        sendJson(response, result.statusCode ?? 200, result.body);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/v1/realtime") {
         const afterSeq = parseSeq(url.searchParams.get("after_seq"));
         sendSse(response, store.listAfter(afterSeq));
@@ -166,6 +349,10 @@ function parseSeq(value) {
   }
 
   return parsed;
+}
+
+function copyRecord(record) {
+  return { ...record };
 }
 
 async function readJson(request) {
