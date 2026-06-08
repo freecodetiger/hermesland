@@ -91,6 +91,12 @@ curl -sS -i \
   http://127.0.0.1:8650/v1/capabilities
 ```
 
+Hermes Island's macOS companion live flow uses the same tunnel and environment contract through:
+
+```bash
+npm run run:macos-agent-live -- "Reply with a short connectivity check."
+```
+
 Expected model ID from the verified deployment:
 
 ```text

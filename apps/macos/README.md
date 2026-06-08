@@ -36,6 +36,40 @@ cd apps/macos
 swift run hermes-island-companion live
 ```
 
+## Hermes Agent Live Flow
+
+Start the SSH tunnel to the deployed Hermes Agent API server:
+
+```bash
+SSHPASS='706nb' sshpass -e ssh -N \
+  -L 8650:172.17.0.1:8650 \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/tmp/hermesland_known_hosts \
+  -o ExitOnForwardFailure=yes \
+  nb706@1.95.80.155
+```
+
+In a separate shell, load the API key into shell state without printing it:
+
+```bash
+export HERMES_AGENT_API_KEY="$(
+  SSHPASS='706nb' sshpass -e ssh \
+    -o StrictHostKeyChecking=no \
+    -o UserKnownHostsFile=/tmp/hermesland_known_hosts \
+    nb706@1.95.80.155 \
+    'bash -lc '"'"'source /home/nb706/zpc/.hermes/.env; printf %s "$API_SERVER_KEY"'"'"''
+)"
+export HERMES_AGENT_GATEWAY_URL="http://127.0.0.1:8650"
+export HERMES_AGENT_MODEL="hermes-zpc"
+export HERMES_AGENT_SESSION_ID="hermes-island-dev"
+```
+
+Run the companion live flow through npm:
+
+```bash
+npm run run:macos-agent-live -- "Reply with a short connectivity check."
+```
+
 The executable is not a packaged `.app` yet. It verifies the app shell, Swift SDK, Gateway HTTP flow, and UI state reducer can run together without requiring an Xcode project, which keeps the MVP testable while full Xcode is unavailable in the current environment.
 
 ## SwiftPM Menu Bar AppKit Target

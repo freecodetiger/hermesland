@@ -18,6 +18,7 @@
     "build:macos-menubar": "cd apps/macos && swift build --product hermes-island-menubar",
     "run:macos-demo": "cd apps/macos && swift run hermes-island-companion demo",
     "run:macos-live": "cd apps/macos && swift run hermes-island-companion live",
+    "run:macos-agent-live": "cd apps/macos && swift run hermes-island-companion agent-live",
     "typecheck:macos-source": "swiftc -typecheck apps/macos/Sources/AppShell/*.swift apps/macos/Sources/UIState/*.swift"
   },
   "engines": {
