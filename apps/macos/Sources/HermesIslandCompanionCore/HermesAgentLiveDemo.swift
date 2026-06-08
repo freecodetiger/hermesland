@@ -54,7 +54,7 @@ public struct HermesAgentLiveDemo {
             sessionID: sessionID
         )
         let eventText = try await client.fetchRunEventsText(runID: run.runID)
-        let streamEvents = HermesAgentSSEParser.parse(eventText)
+        let streamEvents = try HermesAgentSSEParser().parse(eventText)
 
         var normalizer = HermesAgentEventNormalizer()
         var events = normalizer.normalizeRunAccepted(
